@@ -3,17 +3,17 @@
 # Transfer WebWorks scores from <ww totals csv> to <canvas input csv> and
 # puts the resulting csv file into <canvas output csv>. Ignores the scores
 # of students who have dropped the class (i.e. whose names are not in
-# <canvas input csv>.
+# <canvas input csv>).
 #
 # Usage:
-# python3 <this script> <ww totals csv> <canvas input csv> <canvas output csv>
+# python3 <this script> <ww totals csv> <num ww assignments> <canvas input csv> <canvas output csv>
 # 
 # Example usage:
-# python3 ./transfer.py MAT22A-Puckett-Spring-2019_totals.csv 2019-06-11T1036_Grades-MAT_022A_002_SQ_2019.csv output.csv
+# python3 ./transfer.py MAT22A-Puckett-Spring-2019_totals.csv 10 2019-06-11T1036_Grades-MAT_022A_002_SQ_2019.csv output.csv
 
 import sys
 
-def load_ww_scores(ww_totals_csv):
+def load_ww_scores(ww_totals_csv, num_ww_assignments):
     # Ignore the first HEADER_LENGTH lines, as these contain metadata/headers.
     # After this, @line will contain the first line containing student data.
     HEADER_LENGTH = 8
@@ -24,19 +24,16 @@ def load_ww_scores(ww_totals_csv):
         line = ww_totals_csv.readline()
 
     # Read in all of the students' scores.
-    NUM_WEB_WORK_ASSIGNMENTS = 10  # WebWorks 0 through 9.
     ww_scores = {}  # map: student_id -> list of 10 WebWork scores
     while not line == '':  # until EOF
         line_pieces = line.split(',')
         student_id = line_pieces[0].strip()
-        student_scores = line_pieces[6:(6+NUM_WEB_WORK_ASSIGNMENTS)]  # this student's WebWork scores
+        student_scores = line_pieces[6:(6+num_ww_assignments)]  # this student's WebWork scores
         ww_scores[student_id] = list(map(float, student_scores))  # convert to numbers
 
         # Read the next line.
         line = ww_totals_csv.readline()
 
-    # for id in ww_scores:
-    #     print("ww_scores[{}] = {}".format(id, ww_scores[id]))
     return ww_scores
 
 def transfer_ww_scores(ww_scores, canvas_input_csv, canvas_output_csv):
@@ -74,19 +71,20 @@ def transfer_ww_scores(ww_scores, canvas_input_csv, canvas_output_csv):
         canvas_output_csv.write(updated_line)
         line = canvas_input_csv.readline()
 
-NUM_ARGS = 4
 if __name__ == "__main__":  # begin execution here
+    NUM_ARGS = 5
     if len(sys.argv) != NUM_ARGS:
-        print("Usage: {} <ww totals csv> <canvas input csv> <canvas output csv>".format(
+        print("Usage: {} <ww totals csv> <num ww assignments> <canvas input csv> <canvas output csv>".format(
                 sys.argv[0]),
                 file=sys.stderr)
         exit(-1)
 
     ww_totals_csv = open(sys.argv[1], "r")
-    canvas_input_csv = open(sys.argv[2], "r")
-    canvas_output_csv = open(sys.argv[3], "w")
+    num_ww_assignments = int(sys.argv[2])
+    canvas_input_csv = open(sys.argv[3], "r")
+    canvas_output_csv = open(sys.argv[4], "w")
 
-    ww_scores = load_ww_scores(ww_totals_csv)
+    ww_scores = load_ww_scores(ww_totals_csv, num_ww_assignments)
     transfer_ww_scores(ww_scores, canvas_input_csv, canvas_output_csv)
 
     ww_totals_csv.close()
