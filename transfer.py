@@ -1,15 +1,23 @@
 #!/usr/bin/python3
 #
-# Transfer WebWorks scores from <ww totals csv> to <canvas input csv> and
-# puts the resulting csv file into <canvas output csv>. Ignores the scores
+# Transfer WebWorks scores from @ww_totals_csv to @canvas_input_csv and
+# puts the resulting csv file into @canvas_output_csv. Ignores the scores
 # of students who have dropped the class (i.e. whose names are not in
-# <canvas input csv>).
+# @canvas_input_csv).
 #
 # Usage:
-# python3 <this script> <ww totals csv> <num ww assignments> <canvas input csv> <canvas output csv>
+# python3 this_script ww_totals_csv num_ww_assignments canvas_input_csv ww_scores_start_column canvas_output_csv
+#   where:
+#       @ww_totals_csv: the WebWorks scores, downloaded from the Totals section.
+#       @num_ww_assignments: the number of WebWorks assignments.
+#       @canvas_input_csv: the Canvas scores, exported from the gradebook as a csv file.
+#                          NOTE: assumes the WebWorks columns are all contiguous.
+#       @ww_scores_start_column: the column index of the first WebWorks assignment in @canvas_input_csv
+#                                (starts at index #0)
+#       @canvas_output_csv: name of the output csv file. This can be imported into the Canvas gradebook.
 # 
 # Example usage:
-# python3 ./transfer.py MAT22A-Puckett-Spring-2019_totals.csv 10 2019-06-11T1036_Grades-MAT_022A_002_SQ_2019.csv output.csv
+# python3 ./transfer.py MAT22A-Puckett-Spring-2019_totals.csv 10 2019-06-11T1036_Grades-MAT_022A_002_SQ_2019.csv 6 output.csv
 
 import sys
 
@@ -28,7 +36,12 @@ def load_ww_scores(ww_totals_csv, num_ww_assignments):
     while not line == '':  # until EOF
         line_pieces = line.split(',')
         student_id = line_pieces[0].strip()
+
+        # Assuming the WebWorks csv file was downloaded from
+        # the Totals section -- and the format hasn't changed --
+        # the scores should start at the 7th field.
         student_scores = line_pieces[6:(6+num_ww_assignments)]  # this student's WebWork scores
+
         ww_scores[student_id] = list(map(float, student_scores))  # convert to numbers
 
         # Read the next line.
@@ -36,11 +49,11 @@ def load_ww_scores(ww_totals_csv, num_ww_assignments):
 
     return ww_scores
 
-def transfer_ww_scores(ww_scores, canvas_input_csv, canvas_output_csv):
-    HEADER_LENGTH = 3
+def transfer_ww_scores(ww_scores, canvas_input_csv, canvas_output_csv, ww_scores_start_column):
     # Read in the first HEADER_LENGTH lines, without making any changes,
     # since these lines are metadata/header lines.
     # After this loop, @line will contain the first line with student data.
+    HEADER_LENGTH = 3
     line_num = 1
     line = canvas_input_csv.readline()
     while line_num < HEADER_LENGTH + 1:
@@ -61,7 +74,7 @@ def transfer_ww_scores(ww_scores, canvas_input_csv, canvas_output_csv):
 
         # Assign each webwork score.
         ww_scores_for_this_student = ww_scores[student_id]
-        WW_START_INDEX = 7
+        WW_START_INDEX = ww_scores_start_column + 1
         for (ww_num,score) in enumerate(ww_scores_for_this_student):
             line_pieces[WW_START_INDEX + ww_num] = str(score)
 
@@ -71,21 +84,34 @@ def transfer_ww_scores(ww_scores, canvas_input_csv, canvas_output_csv):
         canvas_output_csv.write(updated_line)
         line = canvas_input_csv.readline()
 
-if __name__ == "__main__":  # begin execution here
-    NUM_ARGS = 5
-    if len(sys.argv) != NUM_ARGS:
-        print("Usage: {} <ww totals csv> <num ww assignments> <canvas input csv> <canvas output csv>".format(
-                sys.argv[0]),
-                file=sys.stderr)
-        exit(-1)
+def print_usage_and_die():
+    print("Usage: {} ww_totals_csv num_ww_assignments canvas_input_csv ww_scores_start_column canvas_output_csv".format(
+            sys.argv[0]),
+            file=sys.stderr)
+    exit(-1)
 
-    ww_totals_csv = open(sys.argv[1], "r")
-    num_ww_assignments = int(sys.argv[2])
-    canvas_input_csv = open(sys.argv[3], "r")
-    canvas_output_csv = open(sys.argv[4], "w")
+if __name__ == "__main__":  # begin execution here
+    NUM_ARGS = 6
+    if len(sys.argv) != NUM_ARGS:
+        print_usage_and_die()
+
+    try:
+        num_ww_assignments = int(sys.argv[2])
+        ww_scores_start_column = int(sys.argv[4])
+    except:
+        print("Error: num_ww_assignments and ww_scores_start_column must be integers.", file=sys.stderr)
+        print_usage_and_die()
+    try:
+        ww_totals_csv = open(sys.argv[1], "r")
+        canvas_input_csv = open(sys.argv[3], "r")
+        canvas_output_csv = open(sys.argv[5], "w")
+    except:
+        print("Error: failed to open one of {}, {}, or {}".format(
+            sys.argv[1], sys.argv[3], sys.argv[5]), file=sys.stderr)
+        print_usage_and_die()
 
     ww_scores = load_ww_scores(ww_totals_csv, num_ww_assignments)
-    transfer_ww_scores(ww_scores, canvas_input_csv, canvas_output_csv)
+    transfer_ww_scores(ww_scores, canvas_input_csv, canvas_output_csv, ww_scores_start_column)
 
     ww_totals_csv.close()
     canvas_input_csv.close()
