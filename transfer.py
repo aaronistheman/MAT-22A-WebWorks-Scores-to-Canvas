@@ -61,6 +61,8 @@ def transfer_ww_scores(ww_scores, canvas_input_csv, canvas_output_csv, ww_scores
         line_num += 1
         line = canvas_input_csv.readline()
 
+    overwrote_previous_value = False
+
     # Read in each student's row of Canvas scores and update them.
     while not line == '':
         # Since I'm using the comma as delimiter, the name field
@@ -74,9 +76,14 @@ def transfer_ww_scores(ww_scores, canvas_input_csv, canvas_output_csv, ww_scores
 
         # Assign each webwork score.
         ww_scores_for_this_student = ww_scores[student_id]
-        WW_START_INDEX = ww_scores_start_column + 1
+        ww_start_index = ww_scores_start_column + 1  # the name column becomes two columns,
+                                                     # due to use of "," as delimeter
         for (ww_num,score) in enumerate(ww_scores_for_this_student):
-            line_pieces[WW_START_INDEX + ww_num] = str(score)
+            if not overwrote_previous_value and line_pieces[ww_start_index + ww_num] != "":
+                print("Warning: overwrote at least one previous value in the gradebook.",
+                    file=sys.stderr)
+                overwrote_previous_value = True  # don't flood standard output with these warnings
+            line_pieces[ww_start_index + ww_num] = str(score)
 
         # Recombine line pices into a line.
         updated_line = ','.join(line_pieces)
@@ -93,6 +100,11 @@ def print_usage_and_die():
 if __name__ == "__main__":  # begin execution here
     NUM_ARGS = 6
     if len(sys.argv) != NUM_ARGS:
+        print_usage_and_die()
+
+    if sys.argv[3] == sys.argv[5]:
+        print("Error: cannot give the same Canvas csv filename for both input and output",
+            file=sys.stderr)
         print_usage_and_die()
 
     try:
